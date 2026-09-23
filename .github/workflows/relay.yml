@@ -3,7 +3,11 @@ name: relay
 on:
   workflow_dispatch:
   schedule:
-    - cron: '5 */5 * * *'   # 每 5 小时自动重启(避开 6h 上限)
+    - cron: '5 */5 * * *'
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   relay:
@@ -20,7 +24,6 @@ jobs:
           chmod +x ./sing-box
           curl -sL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           chmod +x ./cloudflared
-          ./sing-box version | head -2
 
       - name: Write config
         env:
@@ -44,6 +47,8 @@ jobs:
           EOF
 
       - name: Start relay and publish endpoint
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./sing-box run -c sb.json &
           sleep 4
@@ -54,11 +59,12 @@ jobs:
             if [ -n "$D" ]; then break; fi
             sleep 5
           done
-          echo "TUNNEL_URL=$D"
-          {
-            echo "## Relay endpoint"
-            echo ""
-            echo "TUNNEL_URL=$D"
-            echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } >> $GITHUB_STEP_SUMMARY
+          echo "TUNNEL=$D"
+          TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          # 发布到 issue(实时可读)
+          gh api "repos/${{ github.repository }}/issues" \
+            -f title="relay-endpoint $TS" \
+            -f body="TUNNEL_URL=$D" > /dev/null 2>&1 || \
+          gh api "repos/${{ github.repository }}/issues/1/comments" \
+            -f body="TUNNEL_URL=$D ts=$TS" > /dev/null 2>&1 || true
           sleep 20400
