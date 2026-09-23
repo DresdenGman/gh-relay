@@ -1,0 +1,64 @@
+name: relay
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '5 */5 * * *'   # 每 5 小时自动重启(避开 6h 上限)
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download sing-box and cloudflared
+        run: |
+          curl -sL -o sb.tar.gz https://github.com/SagerNet/sing-box/releases/download/v1.10.0/sing-box-1.10.0-linux-amd64.tar.gz
+          tar xzf sb.tar.gz
+          cp sing-box-1.10.0-linux-amd64/sing-box ./sing-box
+          chmod +x ./sing-box
+          curl -sL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x ./cloudflared
+          ./sing-box version | head -2
+
+      - name: Write config
+        env:
+          R_UUID: ${{ secrets.RELAY_UUID }}
+          R_PATH: ${{ secrets.RELAY_PATH }}
+        run: |
+          cat > sb.json <<EOF
+          {
+            "log": {"level": "warn"},
+            "inbounds": [
+              {
+                "type": "vless",
+                "listen": "127.0.0.1",
+                "listen_port": 8080,
+                "users": [{"uuid": "${R_UUID}"}],
+                "transport": {"type": "ws", "path": "${R_PATH}"}
+              }
+            ],
+            "outbounds": [{"type": "direct"}]
+          }
+          EOF
+
+      - name: Start relay and publish endpoint
+        run: |
+          ./sing-box run -c sb.json &
+          sleep 4
+          ./cloudflared tunnel --url http://127.0.0.1:8080 --no-autoupdate > cf.log 2>&1 &
+          D=""
+          for i in $(seq 1 30); do
+            D=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' cf.log | head -1)
+            if [ -n "$D" ]; then break; fi
+            sleep 5
+          done
+          echo "TUNNEL_URL=$D"
+          {
+            echo "## Relay endpoint"
+            echo ""
+            echo "TUNNEL_URL=$D"
+            echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> $GITHUB_STEP_SUMMARY
+          sleep 20400
