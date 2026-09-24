@@ -13,6 +13,10 @@ jobs:
   relay:
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        idx: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
 
@@ -29,6 +33,7 @@ jobs:
         env:
           R_UUID: ${{ secrets.RELAY_UUID }}
           R_PATH: ${{ secrets.RELAY_PATH }}
+          IDX: ${{ matrix.idx }}
         run: |
           cat > sb.json <<EOF
           {
@@ -39,7 +44,7 @@ jobs:
                 "listen": "127.0.0.1",
                 "listen_port": 8080,
                 "users": [{"uuid": "${R_UUID}"}],
-                "transport": {"type": "ws", "path": "${R_PATH}"}
+                "transport": {"type": "ws", "path": "${R_PATH}${IDX}"}
               }
             ],
             "outbounds": [{"type": "direct"}]
@@ -49,6 +54,8 @@ jobs:
       - name: Start relay and publish endpoint
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R_PATH: ${{ secrets.RELAY_PATH }}
+          IDX: ${{ matrix.idx }}
         run: |
           ./sing-box run -c sb.json &
           sleep 4
@@ -59,12 +66,10 @@ jobs:
             if [ -n "$D" ]; then break; fi
             sleep 5
           done
-          echo "TUNNEL=$D"
+          echo "TUNNEL=$D idx=${IDX}"
           TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          # 发布到 issue(实时可读)
+          MSG="TUNNEL_URL=$D"$'\n'"PATH=${R_PATH}${IDX}"$'\n'"IDX=${IDX}"
           gh api "repos/${{ github.repository }}/issues" \
-            -f title="relay-endpoint $TS" \
-            -f body="TUNNEL_URL=$D" > /dev/null 2>&1 || \
-          gh api "repos/${{ github.repository }}/issues/1/comments" \
-            -f body="TUNNEL_URL=$D ts=$TS" > /dev/null 2>&1 || true
+            -f title="relay-endpoint-${IDX} ${TS}" \
+            -f body="$MSG" > /dev/null 2>&1 || true
           sleep 20400
