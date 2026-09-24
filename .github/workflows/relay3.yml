@@ -28,7 +28,7 @@ jobs:
       - name: Write config
         env:
           R_UUID: ${{ secrets.RELAY_UUID }}
-          R_PATH: ${{ secrets.RELAY_PATH }}
+          R_PATH: ${{ secrets.RELAY_PATH3 }}
           IDX: 3
         run: |
           cat > sb.json <<EOF
@@ -40,7 +40,7 @@ jobs:
                 "listen": "127.0.0.1",
                 "listen_port": 8080,
                 "users": [{"uuid": "${R_UUID}"}],
-                "transport": {"type": "ws", "path": "${R_PATH}${IDX}"}
+                "transport": {"type": "ws", "path": "${R_PATH}"}
               }
             ],
             "outbounds": [{"type": "direct"}]
@@ -50,7 +50,7 @@ jobs:
       - name: Start relay and publish endpoint
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          R_PATH: ${{ secrets.RELAY_PATH }}
+          R_PATH: ${{ secrets.RELAY_PATH3 }}
           IDX: 3
         run: |
           ./sing-box run -c sb.json &

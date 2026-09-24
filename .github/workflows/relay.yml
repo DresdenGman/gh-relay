@@ -40,7 +40,7 @@ jobs:
                 "listen": "127.0.0.1",
                 "listen_port": 8080,
                 "users": [{"uuid": "${R_UUID}"}],
-                "transport": {"type": "ws", "path": "${R_PATH}${IDX}"}
+                "transport": {"type": "ws", "path": "${R_PATH}"}
               }
             ],
             "outbounds": [{"type": "direct"}]
