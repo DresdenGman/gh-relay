@@ -29,7 +29,7 @@ jobs:
         env:
           R_UUID: ${{ secrets.RELAY_UUID }}
           R_PATH: ${{ secrets.RELAY_PATH }}
-          IDX: 1
+          IDX: 3
         run: |
           cat > sb.json <<EOF
           {
@@ -51,7 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           R_PATH: ${{ secrets.RELAY_PATH }}
-          IDX: 1
+          IDX: 3
         run: |
           ./sing-box run -c sb.json &
           sleep 4
@@ -66,6 +66,6 @@ jobs:
           TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           MSG="TUNNEL_URL=$D"$'\n'"PATH=${R_PATH}${IDX}"$'\n'"IDX=${IDX}"
           gh api "repos/${{ github.repository }}/issues" \
-            -f title="relay-endpoint-1 ${TS}" \
+            -f title="relay-endpoint-3 ${TS}" \
             -f body="$MSG" > /dev/null 2>&1 || true
           sleep 20400
